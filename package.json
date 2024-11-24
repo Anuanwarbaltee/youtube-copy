@@ -2,9 +2,11 @@
   "name": "server",
   "version": "1.0.0",
   "description": "Chai or Backend ",
-  "main": "server.js",
+  "main": "src/index.js",
+  "type": "module",
   "scripts": {
-    "test": "start"
+    "start": "src/index.js",
+    "dev": "nodemon src/index.js"
   },
   "keywords": [
     "mernstack",

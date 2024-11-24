@@ -1,0 +1,15 @@
+{
+  "name": "server",
+  "version": "1.0.0",
+  "description": "Chai or Backend ",
+  "main": "server.js",
+  "scripts": {
+    "test": "start"
+  },
+  "keywords": [
+    "mernstack",
+    "javascript"
+  ],
+  "author": "anu",
+  "license": "ISC"
+}

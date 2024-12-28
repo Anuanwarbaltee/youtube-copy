@@ -18,10 +18,8 @@ const UploadonCloudinary = async (localFile) =>{
          resource_type:"auto",
         }
     )
-
     fs.unlinkSync(localFile)
     return  response
-
  } catch (error) {
     fs.unlinkSync(localFile)
     return null
@@ -29,5 +27,28 @@ const UploadonCloudinary = async (localFile) =>{
 
 }
 
-export {UploadonCloudinary}
+const getPublicIdFromUrl = (url) => {
+    const parts = url.split('/');
+    return parts[parts.length - 1].split('.')[0]; // Extracts the file name without extension
+  };
+
+const deleteCloudinariyFile = async (filePath) => {
+    try {
+        if(!filePath) return  null
+        // Delete File
+        let response = await  cloudinary.uploader.destroy(filePath,
+            {
+             resource_type:"image",
+            }
+        )
+        // fs.unlinkSync(localFile)   
+        return  response
+    
+     } catch (error) {
+        // fs.unlinkSync(localFile)
+        return null
+     }
+}
+
+export {UploadonCloudinary , deleteCloudinariyFile , getPublicIdFromUrl}
     

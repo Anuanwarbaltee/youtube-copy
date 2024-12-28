@@ -29,7 +29,7 @@ const videoSchema = new Schema(
         default :true,
      },
      onwer:{
-        type:Schema.type.ObjectId,
+        type:Schema.Type.ObjectId,
         ref:"user"
      },
     },

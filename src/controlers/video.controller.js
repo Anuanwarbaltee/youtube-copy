@@ -16,11 +16,11 @@ const publishAVideo = asyncHandler(async (req, res) => {
         throw new ApiError(401,"Thumnail field is required.")
     }
 
-    if(!req?.files || !req?.files?.userVideoFile || !req?.files?.userVideoFile?.length === 0){
+    if(!req?.files || !req?.files?.usevideoFile || !req?.files?.usevideoFile?.length === 0){
         throw new ApiError(401,"User video file field is required.")
     }
 
-    const uservideoLocalPath = req?.files?.userVideoFile?.[0].path;
+    const uservideoLocalPath = req?.files?.usevideoFile?.[0].path;
     const thumbnailLocalPath = req?.files?.thumbnail?.[0].path;
 
     if(!uservideoLocalPath){
@@ -53,7 +53,7 @@ const publishAVideo = asyncHandler(async (req, res) => {
         duration:userVideoFileCloudPath?.duration,
         isPublished,
         views:0,
-        onwer:user?._id,
+        owner:user?._id,
     })
     
     const aggrigateVideo = await Video.aggregate([
@@ -61,7 +61,7 @@ const publishAVideo = asyncHandler(async (req, res) => {
         {
             $lookup:{
                 from:"users",
-                localField:"onwer",
+                localField:"owner",
                 foreignField:"_id",
                 as:"ownerDetails"
             }
@@ -76,6 +76,7 @@ const publishAVideo = asyncHandler(async (req, res) => {
                 thumbnail: 1,
                 userVideoFile: 1,
                 duration: 1,
+                owner:1,
                 views:1,
                 isPublished: 1,
                 "ownerDetails.userName":1,
@@ -111,7 +112,7 @@ const incrementVideoViews = asyncHandler(async (req,res)=>{
         {
             $lookup:{
                 from:"users",
-                localField:"onwer",
+                localField:"owner",
                 foreignField:"_id",
                 as:"ownerDetails"
             }
@@ -178,6 +179,7 @@ const togglePublishStatus = asyncHandler(async (req, res) => {
 
 // Get all Videos
 const getAllVideos = asyncHandler(async (req, res) => {
+
     const { page = 1, limit = 10,  sortBy, sortType, userId , title , description } = req.query;
     const query ={};
     if(title){
@@ -187,6 +189,13 @@ const getAllVideos = asyncHandler(async (req, res) => {
     if(description){
         query.title = { $regex: description, $options: "i" }; 
     }
+     
+    console.log("true object id" , userId)
+
+    if (userId && mongoose.Types.ObjectId.isValid(userId)) {
+        console.log("true object id" , userId)
+        query.owner = new mongoose.Types.ObjectId(userId); // Filter videos by a specific user
+    }
 
     const sortOrder = {};
     if (sortBy && sortType) {
@@ -195,15 +204,6 @@ const getAllVideos = asyncHandler(async (req, res) => {
 
     // Pagination calculations
     const skip = (Number(page) - 1) * Number(limit);
-    console.log(skip)
-
-    // Fetch filtered, sorted, and paginated data
-
-
-    // const videos = await Video.find(query)
-    //        .sort(sortOrder)
-    //        .skip(skip)
-    //        .limit(Number(limit));
 
     // Build the aggregation pipeline
     const videos = await Video.aggregate([
@@ -213,7 +213,7 @@ const getAllVideos = asyncHandler(async (req, res) => {
      {
         $lookup: {
             from: "users", // The name of the User collection
-            localField: "onwer", // The field in Video collection
+            localField: "owner", // The field in Video collection
             foreignField: "_id", // The field in User collection
             as: "ownerDetails" // The alias for the joined data
         }
@@ -280,7 +280,7 @@ const getVideoById = asyncHandler(async (req, res) => {
         {
             $lookup:{
                 from:"users",
-                localField:"onwer",
+                localField:"owner",
                 foreignField:"_id",
                 as:"ownerDetails"
             }
@@ -354,7 +354,7 @@ const updateVideoThumbnail = asyncHandler(async (req, res) => {
             }
         },
         { new: true, validateBeforeSave: false }
-    ).select("-title -userVideoFile -description -duration -isPublished -onwer -views -usevideoFile")
+    ).select("-title -userVideoFile -description -duration -isPublished -owner -views -usevideoFile")
   
      if (req.thumbNail?.thumbnail) {
         const publicUid = getPublicIdFromUrl(req.thumbNail.thumbnail);

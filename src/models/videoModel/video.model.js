@@ -32,9 +32,9 @@ const videoSchema = new Schema(
         type:Boolean,
         default :true,
      },
-     onwer:{
+     owner:{
       type:Schema.Types.ObjectId,
-        ref:"user"
+        ref:"User"
      },
     },
     {

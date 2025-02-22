@@ -64,7 +64,6 @@ const user = await User.create({
     email,
     userName: userName?.toLowerCase()
 })
-console.log("user ", user) 
  const createdUser = await   User.findById(user._id).select("-password -refreshToken")
  console.log("Created user ", createdUser)
  if(!createdUser){

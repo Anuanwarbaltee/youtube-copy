@@ -212,10 +212,10 @@ const getAllVideos = asyncHandler(async (req, res) => {
     
      {
         $lookup: {
-            from: "users", // The name of the User collection
-            localField: "owner", // The field in Video collection
-            foreignField: "_id", // The field in User collection
-            as: "ownerDetails" // The alias for the joined data
+            from: "users", 
+            localField: "owner", 
+            foreignField: "_id", 
+            as: "ownerDetails" 
         }
      },
     

@@ -16,11 +16,15 @@ import userRouter from './routes/user.routes.js'
 import subscriptionRouter from './routes/subscription.routes.js'
 import videoRouter from './routes/video.route.js'
 import playlistRouter from './routes/playlist.routes.js'
+import commentRouter from './routes/comment.route.js'
+import likeRouter from './routes/likes.route.js'
 
 // route Decleration
 app.use('/api/v1/user', userRouter)
 app.use('/api/v1/subscriptions', subscriptionRouter)
 app.use('/api/v1/video', videoRouter)
 app.use('/api/v1/playlist', playlistRouter)
+app.use('/api/v1/comment', commentRouter)
+app.use('/api/v1/like', likeRouter)
 
 export {app}

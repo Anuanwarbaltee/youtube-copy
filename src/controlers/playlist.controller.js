@@ -109,7 +109,10 @@ const removeVideoFromPlaylist = asyncHandler(async (req, res)=>{
     throw new ApiError(401,"Video  id is required")
   }
   
-  const playList = await playlist.deleteOne({owner: new mongoose.Types.ObjectId(userId)})
+  const playList = await playlist.updateOne(
+    {_id:playListId},
+    {$pull:{videos:vedioId}}
+  )
 
   if(!playList){
     throw new ApiError(401,"Playlist  not found")
@@ -124,7 +127,7 @@ const deletePlaylist = asyncHandler(async (req, res)=>{
   if(!playListId){
     throw new ApiError(401,"Playlist  id is required")
   }
-  const playList = await playlist.deleteOne(playListId)
+  const playList = await playlist.deleteOne({_id:playListId})
 
   if(!playList){
     throw new ApiError(401,"Playlist  not found")
@@ -134,11 +137,37 @@ const deletePlaylist = asyncHandler(async (req, res)=>{
   .json(new ApiResponse(200,[],"Playlist delete successfully"))
 })
 
+const updatePlaylist = asyncHandler(async (req, res) => {
+  const {playListId} = req.params
+  const {name, description} = req.body
+  if(!playListId){
+    throw new ApiError(401,"PlayList  id is required")
+  }
+  if(!name){
+    throw new ApiError(401,"Name  id is required")
+  }
+  if(!description){
+    throw new ApiError(401,"Description  id is required")
+  }
+
+  const playList = await playlist.findByIdAndUpdate(playListId,
+      {name,description},
+      {new: true}
+  )
+  if(!playList){
+    throw new ApiError(401,"PlayList not found")
+  }
+
+  res.status(200)
+  .json(new ApiResponse(200, playList ,"Playlsit Update Successfully"))
+})
+
 export {
     createPlaylist,
     getUserPlayList,
     getPlaylistById,
     addVideoToPlayList,
-    deletePlaylist,
     removeVideoFromPlaylist,
+    deletePlaylist,
+    updatePlaylist,
 }

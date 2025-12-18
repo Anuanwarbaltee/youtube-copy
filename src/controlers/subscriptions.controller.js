@@ -40,8 +40,6 @@ let isSubscribed ;
     isSubscribed
  }
 
-
-
  return res.status(200)
  .json(new ApiResponse(200, response , "Successfully toggled subscription."))
 
@@ -49,51 +47,32 @@ let isSubscribed ;
 
 // controller to return subscriber list of a channel
 const getUserChannelSubscribers = asynchandler(async (req, res) => {
-   const {channelId} = req.params;
-   if(!channelId || !isValidObjectId(channelId)){
-      throw new ApiError(400,"Invalid or missing channel Id.")
-   }
-  
-   const channel = await User.findById(channelId)
-   if(!channel){
-      throw new ApiError(400,"Channel does not exist.")
-   }
-  
-   const subscriberList = await Subscription.aggregate([
-      {
-         $match: {
-            channel: new mongoose.Types.ObjectId(channelId),
-         }
-     },
-     {
-      $lookup:{
-         localField:"subscriber",
-         from:"users",
-         foreignField:"_id",
-         as:"channelDetails"
-      }
-     },
-      {
-         $unwind: "$channelDetails", 
-       },
-      {
-         $project:{
-            channel:1,
-            subscriber:1,
-            "channelDetails.fullName":1,
-            "channelDetails.email":1,
-            "channelDetails.avatar":1,
-         }
-     },
-   ])
-   
-   if(!subscriberList.length){
-      throw new ApiError(404,"No Subscriber Found.")
+   const { channelId } = req.params;
+   const userId = req.user?.id;
+
+   console.log("channel Id" , channelId , "User Id" , userId)
+
+   if (!channelId || !isValidObjectId(channelId)) {
+       throw new ApiError(400, "Invalid or missing channel ID.");
    }
 
-   res.status(200)
-   .json(new ApiResponse(200, subscriberList ,"Subscriber list fetched successfully."))
-})
+   // Fetch subscriber count
+   const subscriberCount = await Subscription.countDocuments({ channel: channelId });
+   // Check if user is subscribed
+   let isSubscribed = false;
+   if (userId) {
+       const subscription = await Subscription.findOne({ channel: channelId, subscriber: userId });
+       isSubscribed = !!subscription; // Convert object to boolean
+
+       console.log("Subscription",subscription )
+   }
+
+   res.status(200).json(
+       new ApiResponse(200, { count: subscriberCount, isSubscribed }, "Subscriber data fetched successfully.")
+   );
+});
+
+
 
 // controller to return channel list to which user has subscribed
 const getSubscribedChannels = asynchandler(async (req, res) => {

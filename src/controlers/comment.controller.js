@@ -29,6 +29,7 @@ const comment = await Comment.create({
     owner: new mongoose.Types.ObjectId(req.user?._id)
 }) 
 
+console.log("user id test", req?.user?._id)
 if(!comment){
     throw new ApiError(401,"Error occuring during add comment.")
 }
@@ -41,7 +42,7 @@ res.status(200)
 const getComments = asyncHandler(async (req, res)=>{
     const {skip = 0, limit = 0 , id} = req.body;
     if(!id){
-        throw new ApiError("401","Video Id is requires.")
+        throw new ApiError("404","Video Id is requires.")
     }
 
     const page = (Number(skip) -1) * Number(limit);
@@ -63,17 +64,42 @@ const getComments = asyncHandler(async (req, res)=>{
         },
         { $unwind: { path: "$ownerDetails", preserveNullAndEmptyArrays: true } },
         {
+            $lookup:{
+              from:"likes",
+             let :{ comentId : "$_id"},
+
+             pipeline:[
+                {
+                    $match:{
+                        $expr:{
+                            $eq:["$comment","$$comentId"]
+                        }
+                    }
+                }
+             ],
+             as:"likeData"
+              
+            }
+          },
+        
+        {
             $project:{
                 content:1,
                 createdAt:1,
                 updatedAt:1,
+                likesCount:{$size:"$likeData"},
+                isLiked:{
+                    $in:[new mongoose.Types.ObjectId(req?.user?._id),"$likeData.likeBy"]
+                },
                 "ownerDetails.userName": 1, 
                 "ownerDetails.email": 1,
                 "ownerDetails.avatar": 1,
+                "ownerDetails._id": 1,
             }
         }
     ])
 
+    console.log(comments)
     const totalComments = await Comment.countDocuments({video: new mongoose.Types.ObjectId(id)})
 
     return res.status(200).json(new ApiResponse(200, {comments,pagination:{

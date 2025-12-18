@@ -76,9 +76,12 @@ const user = await User.create({
 
 const loginUser = asynchandler( async(req,res)=> {
  const {userName,email, password} = req.body;
-
- if(!userName && !email){
-    throw new ApiError(401,"User Name or Password is required.")
+console.log(req.body)
+ if(!userName){
+    throw new ApiError(401,"User Name is required.")
+ }
+ if(!password){
+    throw new ApiError(401,"Password is required.")
  }
 
  const user = await User.findOne({$or:[{userName},{email}]})
@@ -356,7 +359,7 @@ const addWatchHistory = asynchandler(async (req, res) => {
     const alreadyExist = user.watchHistory.some((_id)=> _id == videoId)
 
     if(alreadyExist){
-      throw new ApiError(404,"video already exist in the Watch History.")
+      throw new ApiError(200,"video already exist in the Watch History.")
     }
 
     

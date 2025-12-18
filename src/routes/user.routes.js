@@ -43,5 +43,5 @@ router.route("/update-user").patch(verifyJWT,updateUserAccount)
 router.route("/update-avatar").patch(verifyJWT, upload.single("avatar") ,updateUserAvater)
 router.route("/update-coverImage").patch(verifyJWT, upload.single("coverImage") ,updateUserCoverImage)
 router.route("/add-history").post(verifyJWT,addWatchHistory)
-router.route("/watch-history").get(verifyJWT,getWatchHistory)
+router.route("/watch-history/:id").get(verifyJWT,getWatchHistory)
 export default router

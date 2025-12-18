@@ -12,5 +12,6 @@ router.use(verifyJWT)
 router.route("/").post(addcomment)
 router.route("/list").post(getComments)
 router.route("/delete/:commentId").delete(deleteComment)
+router.route("/update/:commentId").patch(updateComments)
 
 export default router

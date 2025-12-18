@@ -19,7 +19,7 @@ const router = Router()
 router.route("/upload-video").post(upload.fields(
     [
         {
-            name:"usevideoFile",
+            name:"uservideoFile",
             maxCount:1
         },
         {
@@ -27,6 +27,11 @@ router.route("/upload-video").post(upload.fields(
             maxCount:1
         }
     ]),
+    (req, res, next) => {
+        console.log("Received body:", req.body);
+        console.log("Received files:", req.files);
+        next();
+    },
     verifyJWT,
     publishAVideo
 )

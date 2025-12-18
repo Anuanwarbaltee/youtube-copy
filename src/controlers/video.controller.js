@@ -9,19 +9,25 @@ import mongoose , {isValidObjectId} from 'mongoose';
 // Upload Video
 const publishAVideo = asyncHandler(async (req, res) => {
     const { title, description , isPublished} = req.body 
-    if([title , description].some(fileds => fileds.trim() === "")){
-        throw new ApiError(401,"All Fields are required.")
+    console.log("Received body:", req.body);
+    console.log("Received files:", req.files);
+    if([title , description].some(fileds => fileds?.trim() === "")){
+        throw new ApiError(400,"All Fields are required.")
     }
-    if(!req.files || !req.files.thumbnail || !req.files.thumbnail.length === 0){
-        throw new ApiError(401,"Thumnail field is required.")
-    }
-
-    if(!req?.files || !req?.files?.usevideoFile || !req?.files?.usevideoFile?.length === 0){
-        throw new ApiError(401,"User video file field is required.")
+    if(!req.files || !req.files.thumbnail ){
+        throw new ApiError(400,"Thumnail field is required.")
     }
 
-    const uservideoLocalPath = req?.files?.usevideoFile?.[0].path;
+    console.log("request file" , req?.files)
+
+    if(!req?.files || !req?.files?.uservideoFile ){
+        throw new ApiError(400,"User video file field is required.")
+    }
+
+    const uservideoLocalPath = req?.files?.uservideoFile?.[0].path;
     const thumbnailLocalPath = req?.files?.thumbnail?.[0].path;
+
+    console.log("uservideoLocalPath", uservideoLocalPath)
 
     if(!uservideoLocalPath){
         throw new ApiError(400,"User video file field is required.")
@@ -49,7 +55,7 @@ const publishAVideo = asyncHandler(async (req, res) => {
         title,
         description,
         thumbnail:ThumnailCloudPath.url,
-        userVideoFile:userVideoFileCloudPath.url,
+        uservideoFile:userVideoFileCloudPath.url,
         duration:userVideoFileCloudPath?.duration,
         isPublished,
         views:0,
@@ -74,7 +80,7 @@ const publishAVideo = asyncHandler(async (req, res) => {
                 title:1,
                 description:1,
                 thumbnail: 1,
-                userVideoFile: 1,
+                uservideoFile: 1,
                 duration: 1,
                 owner:1,
                 views:1,
@@ -125,7 +131,7 @@ const incrementVideoViews = asyncHandler(async (req,res)=>{
                 title:1,
                 description:1,
                 thumbnail: 1,
-                userVideoFile: 1,
+                uservideoFile: 1,
                 duration: 1,
                 isPublished: 1,
                 views:1,
@@ -179,23 +185,21 @@ const togglePublishStatus = asyncHandler(async (req, res) => {
 
 // Get all Videos
 const getAllVideos = asyncHandler(async (req, res) => {
-
-    const { page = 1, limit = 10,  sortBy, sortType, userId , title , description } = req.query;
+    const { page = 1, limit = 10,  sortBy, sortType, title , description } = req.query;
     const query ={};
     if(title){
         query.title = { $regex: title, $options: "i" }; // Case-insensitive search on the title
     }
 
     if(description){
-        query.title = { $regex: description, $options: "i" }; 
+        query.description = { $regex: description, $options: "i" }; 
     }
      
-    console.log("true object id" , userId)
 
-    if (userId && mongoose.Types.ObjectId.isValid(userId)) {
-        console.log("true object id" , userId)
-        query.owner = new mongoose.Types.ObjectId(userId); // Filter videos by a specific user
-    }
+    // if (userId && mongoose.Types.ObjectId.isValid(userId)) {
+    //     console.log("true object id" , userId)
+    //     query.owner = new mongoose.Types.ObjectId(userId); // Filter videos by a specific user
+    // }
 
     const sortOrder = {};
     if (sortBy && sortType) {
@@ -204,6 +208,9 @@ const getAllVideos = asyncHandler(async (req, res) => {
 
     // Pagination calculations
     const skip = (Number(page) - 1) * Number(limit);
+
+    console.log("Before Pagination Limit  data" , limit , "Before Pagination skip data " , skip)
+    
 
     // Build the aggregation pipeline
     const videos = await Video.aggregate([
@@ -228,13 +235,16 @@ const getAllVideos = asyncHandler(async (req, res) => {
             title: 1,
             description: 1,
             thumbnail: 1,
-            userVideoFile: 1,
+            uservideoFile: 1,
             duration: 1,
             isPublished: 1,
+            views:1,
+            createdAt:1,
             "ownerDetails.userName": 1, // Select specific owner fields
             "ownerDetails.email": 1,
             "ownerDetails.avatar": 1,
             "ownerDetails.createdAt": 1,
+            "ownerDetails._id": 1,
         }
      },
     
@@ -245,8 +255,10 @@ const getAllVideos = asyncHandler(async (req, res) => {
      { $skip: skip },
     
      // Limit stage for pagination
-     { $limit: Number(limit) }
+     { $limit: Number(limit)},
+     
     ]);
+    console.log("Limit  data" , limit , "skip data " , skip)
        // Get total count for pagination metadata
        const totalVideos = await Video.countDocuments(query);
    
@@ -293,10 +305,11 @@ const getVideoById = asyncHandler(async (req, res) => {
                 title:1,
                 description:1,
                 thumbnail: 1,
-                userVideoFile: 1,
+                uservideoFile: 1,
                 duration: 1,
                 isPublished: 1,
                 views:1,
+                createdAt:1,
                 "ownerDetails.userName":1,
                 "ownerDetails.email":1,
                 "ownerDetails.avatar":1,
@@ -354,7 +367,7 @@ const updateVideoThumbnail = asyncHandler(async (req, res) => {
             }
         },
         { new: true, validateBeforeSave: false }
-    ).select("-title -userVideoFile -description -duration -isPublished -owner -views -usevideoFile")
+    ).select("-title -uservideoFile -description -duration -isPublished -owner -views -usevideoFile")
   
      if (req.thumbNail?.thumbnail) {
         const publicUid = getPublicIdFromUrl(req.thumbNail.thumbnail);

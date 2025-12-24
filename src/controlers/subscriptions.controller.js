@@ -64,7 +64,6 @@ const getUserChannelSubscribers = asynchandler(async (req, res) => {
        const subscription = await Subscription.findOne({ channel: channelId, subscriber: userId });
        isSubscribed = !!subscription; // Convert object to boolean
 
-       console.log("Subscription",subscription )
    }
 
    res.status(200).json(
@@ -123,8 +122,96 @@ const getSubscribedChannels = asynchandler(async (req, res) => {
    .json(new ApiResponse(200,  subscribedChannels, "Successfully fetched data."))
 })
 
+const getSubscribedChannelsWithLatestVideo = asynchandler(async (req, res) => {
+    const userId = req.user?._id;
+
+    if (!userId) {
+        throw new ApiError(401, "Unauthorized");
+    }
+
+    const data = await Subscription.aggregate([
+        //  Match user subscriptions
+        {
+            $match: {
+                subscriber: new mongoose.Types.ObjectId(userId),
+            },
+        },
+
+        //  Get channel (user) info
+        {
+            $lookup: {
+                from: "users",
+                localField: "channel",
+                foreignField: "_id",
+                as: "channel",
+                pipeline: [
+                    {
+                        $project: {
+                            fullName: 1,
+                            userName: 1,
+                            avatar: 1,
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            $addFields: {
+                channel: { $first: "$channel" },
+            },
+        },
+
+        // Get latest video of that channel
+        {
+            $lookup: {
+                from: "videos",
+                localField: "channel._id",
+                foreignField: "owner",
+                as: "latestVideo",
+                pipeline: [
+                    { $sort: { createdAt: -1 } },
+                    { $limit: 1 },
+                    {
+                        $project: {
+                            title: 1,
+                            thumbnail: 1,
+                            uservideoFile:1,
+                            description:1,
+                            createdAt: 1,
+                            views: 1,
+                        },
+                    },
+                ],
+            },
+        },
+
+        {
+            $addFields: {
+                latestVideo: { $first: "$latestVideo" },
+            },
+        },
+
+        // 4️⃣ Sort by latest video date
+        {
+            $sort: {
+                "latestVideo.createdAt": -1,
+            },
+        },
+    ]);
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            data,
+            "Subscribed channels with latest videos fetched successfully."
+        )
+    );
+});
+
+
 export{
     toggleSubscription,
     getUserChannelSubscribers,
-    getSubscribedChannels
+    getSubscribedChannels,
+    getSubscribedChannelsWithLatestVideo
 }

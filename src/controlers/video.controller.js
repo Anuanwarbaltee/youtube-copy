@@ -185,95 +185,105 @@ const togglePublishStatus = asyncHandler(async (req, res) => {
 
 // Get all Videos
 const getAllVideos = asyncHandler(async (req, res) => {
-    const { page = 1, limit = 10,  sortBy, sortType, title , description } = req.query;
-    const query ={};
-    if(title){
-        query.title = { $regex: title, $options: "i" }; // Case-insensitive search on the title
-    }
+  const { page = 1, limit = 10, sortBy, sortType, search } = req.query;
 
-    if(description){
-        query.description = { $regex: description, $options: "i" }; 
-    }
-     
+  const skip = (Number(page) - 1) * Number(limit);
 
-    // if (userId && mongoose.Types.ObjectId.isValid(userId)) {
-    //     console.log("true object id" , userId)
-    //     query.owner = new mongoose.Types.ObjectId(userId); // Filter videos by a specific user
-    // }
+  let pipeline = [];
 
-    const sortOrder = {};
-    if (sortBy && sortType) {
-        sortOrder[sortBy] = sortType === "desc" ? -1 : 1;
-    }
+  //  Lookup users
+  pipeline.push({
+    $lookup: {
+      from: "users",
+      localField: "owner",
+      foreignField: "_id",
+      as: "ownerDetails",
+    },
+  });
 
-    // Pagination calculations
-    const skip = (Number(page) - 1) * Number(limit);
+  //  Unwind owner
+  pipeline.push({
+    $unwind: {
+      path: "$ownerDetails",
+      preserveNullAndEmptyArrays: true,
+    },
+  });
 
-    console.log("Before Pagination Limit  data" , limit , "Before Pagination skip data " , skip)
-    
+  //  Single search filter (title + description + username)
+  if (search) {
+    pipeline.push({
+      $match: {
+        $or: [
+          { title: { $regex: search, $options: "i" } },
+          { description: { $regex: search, $options: "i" } },
+          { "ownerDetails.userName": { $regex: search, $options: "i" } },
+        ],
+      },
+    });
+  }
 
-    // Build the aggregation pipeline
-    const videos = await Video.aggregate([
-     // Match stage for filtering based on query
-     { $match: query }, 
-    
-     {
-        $lookup: {
-            from: "users", 
-            localField: "owner", 
-            foreignField: "_id", 
-            as: "ownerDetails" 
-        }
-     },
-    
-     // Unwind the ownerDetails array to simplify the structure
-     { $unwind: { path: "$ownerDetails", preserveNullAndEmptyArrays: true } },
-    
-     // Add a project stage to control the fields returned
-     {
-        $project: {
-            title: 1,
-            description: 1,
-            thumbnail: 1,
-            uservideoFile: 1,
-            duration: 1,
-            isPublished: 1,
-            views:1,
-            createdAt:1,
-            "ownerDetails.userName": 1, // Select specific owner fields
-            "ownerDetails.email": 1,
-            "ownerDetails.avatar": 1,
-            "ownerDetails.createdAt": 1,
-            "ownerDetails._id": 1,
-        }
-     },
-    
-     // Sort stage for sorting
-     { $sort: sortOrder },
-    
-     // Skip stage for pagination
-     { $skip: skip },
-    
-     // Limit stage for pagination
-     { $limit: Number(limit)},
-     
-    ]);
-    console.log("Limit  data" , limit , "skip data " , skip)
-       // Get total count for pagination metadata
-       const totalVideos = await Video.countDocuments(query);
-   
-       // Response with data and metadata
-       return res.status(200).json(
-           new ApiResponse(200, {
-               videos,
-               pagination: {
-                   currentPage: Number(page),
-                   totalPages: Math.ceil(totalVideos / limit),
-                   totalVideos,
-               },
-           }, "Videos fetched successfully.")
-    );
-})
+  //  Project required fields
+  pipeline.push({
+    $project: {
+      title: 1,
+      description: 1,
+      thumbnail: 1,
+      uservideoFile: 1,
+      duration: 1,
+      isPublished: 1,
+      views: 1,
+      createdAt: 1,
+      ownerDetails: {
+        _id: 1,
+        userName: 1,
+        email: 1,
+        avatar: 1,
+        createdAt: 1,
+      },
+    },
+  });
+
+  //  Sorting
+  let sortStage = {};
+  if (sortBy && sortType) {
+    sortStage[sortBy] = sortType === "desc" ? -1 : 1;
+  } else {
+    sortStage.createdAt = -1; // default
+  }
+
+  pipeline.push({ $sort: sortStage });
+
+  //  Pagination
+  pipeline.push({ $skip: skip });
+  pipeline.push({ $limit: Number(limit) });
+
+  const videos = await Video.aggregate(pipeline);
+
+  // 7 Total count for pagination
+  const countPipeline = pipeline.filter(
+    stage => !stage.$skip && !stage.$limit && !stage.$sort
+  );
+
+  countPipeline.push({ $count: "total" });
+
+  const totalCount = await Video.aggregate(countPipeline);
+  const totalVideos = totalCount[0]?.total || 0;
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        videos,
+        pagination: {
+          currentPage: Number(page),
+          totalPages: Math.ceil(totalVideos / limit),
+          totalVideos,
+        },
+      },
+      "Videos fetched successfully"
+    )
+  );
+});
 
 // Get Video by Id
 const getVideoById = asyncHandler(async (req, res) => {

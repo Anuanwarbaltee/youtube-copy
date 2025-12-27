@@ -288,6 +288,8 @@ const getAllVideos = asyncHandler(async (req, res) => {
 // Get Video by Id
 const getVideoById = asyncHandler(async (req, res) => {
     const { videoId } = req.params;
+    const userId = new mongoose.Types.ObjectId(req.user.id);
+
     if(!videoId){
         throw new ApiError(400, "Video id is required.")
     }
@@ -296,8 +298,7 @@ const getVideoById = asyncHandler(async (req, res) => {
     if(!video){
         throw new ApiError(400, "Video not found.")
     }
-
-    const aggrigateVideo = await Video.aggregate([
+ const aggrigateVideo = await Video.aggregate([
         {$match:{_id:video._id}},
         {
             $lookup:{
@@ -311,6 +312,11 @@ const getVideoById = asyncHandler(async (req, res) => {
             $unwind:"$ownerDetails"
         },
         {
+          $addFields: {
+            isOwner: { $eq: ["$owner", userId] }
+          }
+        },
+          {
             $project:{
                 title:1,
                 description:1,
@@ -320,6 +326,7 @@ const getVideoById = asyncHandler(async (req, res) => {
                 isPublished: 1,
                 views:1,
                 createdAt:1,
+                isOwner:1,
                 "ownerDetails.userName":1,
                 "ownerDetails.email":1,
                 "ownerDetails.avatar":1,
@@ -328,7 +335,7 @@ const getVideoById = asyncHandler(async (req, res) => {
         }
     ])
 
-    if(!aggrigateVideo.length){
+     if(!aggrigateVideo.length){
         throw new ApiError(404, "Video not found.")
     }
 
@@ -336,6 +343,80 @@ const getVideoById = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, aggrigateVideo , "Data fetched successfully."))
 
 })
+
+const getChanalVideos = asyncHandler(async (req, res) => {
+  const { page = 1, limit = 10, search, id } = req.query;
+  const skip = (Number(page) - 1) * Number(limit);
+
+  const pipeline = [];
+
+  pipeline.push({
+    $match: {
+      owner: new mongoose.Types.ObjectId(id),
+    },
+  });
+
+  // Search filter (title + description)
+  if (search) {
+    pipeline.push({
+      $match: {
+        $or: [
+          { title: { $regex: search, $options: "i" } },
+          { description: { $regex: search, $options: "i" } },
+        ],
+      },
+    });
+  }
+
+  // Projection
+  pipeline.push({
+    $project: {
+      title: 1,
+      description: 1,
+      thumbnail: 1,
+      uservideoFile: 1,
+      duration: 1,
+      views: 1,
+      createdAt: 1,
+      
+    },
+  });
+
+  // Sort latest first
+  pipeline.push({ $sort: { createdAt: -1 } });
+
+  // Pagination
+  pipeline.push({ $skip: skip });
+  pipeline.push({ $limit: Number(limit) });
+
+  const videos = await Video.aggregate(pipeline);
+
+  // Count for pagination
+  const countPipeline = pipeline.filter(
+    stage => !stage.$skip && !stage.$limit && !stage.$sort
+  );
+
+  countPipeline.push({ $count: "total" });
+
+  const totalCount = await Video.aggregate(countPipeline);
+  const totalVideos = totalCount[0]?.total || 0;
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        videos,
+        pagination: {
+          currentPage: Number(page),
+          totalPages: Math.ceil(totalVideos / limit),
+          totalVideos,
+        },
+      },
+      "Videos fetched successfully"
+    )
+  );
+});
+
 
 // Get Video by Id
 const deleteVideo = asyncHandler(async (req, res) => {
@@ -432,4 +513,5 @@ export {
     deleteVideo,
     updateVideoThumbnail,
     updateVideo ,
+    getChanalVideos
 }

@@ -8,6 +8,7 @@ import {
     deleteVideo,
     updateVideoThumbnail,
     updateVideo,
+    getChanalVideos
     } from "../controlers/video.controller.js"
 import {upload} from "../midleware/multer.mildleware.js"
 import { verifyJWT } from "../midleware/auth.midleware.js"
@@ -28,8 +29,6 @@ router.route("/upload-video").post(upload.fields(
         }
     ]),
     (req, res, next) => {
-        console.log("Received body:", req.body);
-        console.log("Received files:", req.files);
         next();
     },
     verifyJWT,
@@ -42,4 +41,5 @@ router.route('/:videoId').get(verifyJWT, getVideoById);
 router.route('/:videoId').delete(verifyJWT, deleteVideo);
 router.route("/update-thumbnail").patch(verifyJWT, upload.single("thumbnail") ,updateVideoThumbnail)
 router.route("/update-video").patch(verifyJWT,updateVideo)
+router.route("/").get(verifyJWT,getChanalVideos)
 export default router

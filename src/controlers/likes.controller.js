@@ -88,15 +88,12 @@ const getUserChannelLikes = asyncHandler(async (req, res) => {
 
    // Fetch Like count
    const likeCount = await Likes.countDocuments({ video: id });
-   console.log("likeCount",likeCount)
    // Check if user is Liked
    let isLiked = false;
-   console.log("User Id ", userId ,"Videoid " , id)
    if (userId) {
        const like = await Likes.findOne({ video: id, likeBy: userId });
-       console.log("Like record:", like); // Debugging
 
-       isLiked = !!like; // Convert object to boolean
+       isLiked = !!like; 
    }
 
    res.status(200).json(
@@ -104,8 +101,86 @@ const getUserChannelLikes = asyncHandler(async (req, res) => {
    );
 });
 
+const geLikedVideos = asyncHandler(async (req, res) => {
+  const userId = req.user?.id;
+
+  if (!userId || !isValidObjectId(userId)) {
+    throw new ApiError(400, "Invalid or missing user ID.");
+  }
+
+  const page = Math.max(parseInt(req.query.page) || 1, 1);
+  const limit = Math.min(parseInt(req.query.limit) || 10, 50);
+  const skip = (page - 1) * limit;
+
+  const pipeline = [
+    {
+      $match: {
+        likeBy: new mongoose.Types.ObjectId(userId),
+      },
+    },
+
+    {
+      $lookup: {
+        from: "videos",
+        localField: "video",
+        foreignField: "_id",
+        as: "video",
+        pipeline: [
+          {
+            $project: {
+              title: 1,
+              thumbnail: 1,
+              uservideoFile: 1,
+              description: 1,
+              createdAt: 1,
+              views: 1,
+            },
+          },
+        ],
+      },
+    },
+
+    {
+      $unwind: "$video", // 
+    },
+    {
+      $replaceRoot: {
+        newRoot: "$video",
+      },
+    },
+
+    { $sort: { createdAt: -1 } },
+
+    // pagination
+    { $skip: skip },
+    { $limit: limit },
+  ];
+
+  const videos = await Likes.aggregate(pipeline);
+
+  // total count for frontend
+  const totalCount = await Likes.countDocuments({
+    likeBy: userId,
+  });
+
+  res.status(200).json(
+    new ApiResponse(200, {
+      videos,
+      pagination: {
+        page,
+        limit,
+        totalPages: Math.ceil(totalCount / limit),
+        totalRecords: totalCount,
+        hasMore: skip + videos.length < totalCount,
+      },
+    }, "Liked videos fetched successfully.")
+  );
+});
+
+
 export{
     toggleVideoLikes,
     getUserChannelLikes,
     toggleCommentLikes,
+    geLikedVideos,
 }

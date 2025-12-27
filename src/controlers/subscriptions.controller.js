@@ -191,7 +191,7 @@ const getSubscribedChannelsWithLatestVideo = asynchandler(async (req, res) => {
             },
         },
 
-        // 4️⃣ Sort by latest video date
+        //  Sort by latest video date
         {
             $sort: {
                 "latestVideo.createdAt": -1,

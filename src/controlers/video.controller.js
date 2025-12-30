@@ -1,6 +1,6 @@
 import asyncHandler from "../utils/asynchandler.js"
 import {ApiError} from '../utils/ApiErrors.js'
-import {UploadonCloudinary} from'../utils/cloudinary.js'
+import {deleteCloudinariyFile, getPublicIdFromUrl, UploadonCloudinary} from'../utils/cloudinary.js'
 import {User} from '../models/userModel/user.model.js'
 import { Video } from "../models/videoModel/video.model.js"
 import {ApiResponse} from '../utils/ApiResponse.js'
@@ -9,8 +9,6 @@ import mongoose , {isValidObjectId} from 'mongoose';
 // Upload Video
 const publishAVideo = asyncHandler(async (req, res) => {
     const { title, description , isPublished} = req.body 
-    console.log("Received body:", req.body);
-    console.log("Received files:", req.files);
     if([title , description].some(fileds => fileds?.trim() === "")){
         throw new ApiError(400,"All Fields are required.")
     }
@@ -374,6 +372,7 @@ const getChanalVideos = asyncHandler(async (req, res) => {
       title: 1,
       description: 1,
       thumbnail: 1,
+      isPublished: 1,
       uservideoFile: 1,
       duration: 1,
       views: 1,
@@ -447,10 +446,12 @@ const updateVideoThumbnail = asyncHandler(async (req, res) => {
         throw new ApiError(400,"Thumbnail field is required.")
     }
 
-    const thumbnail = await UploadonCloudinary(localThumbnailPath)
+    const thumbnail = await UploadonCloudinary(localThumbnailPath,   req.file?.mimetype)
     if(!thumbnail){
         throw new ApiError(500, "Error while uploading on Thumbnail.")
     }
+    const oldVideo = await Video.findById(videoId);
+
     const thumbNail = await Video.findByIdAndUpdate(videoId,
         {
             $set:{
@@ -460,21 +461,57 @@ const updateVideoThumbnail = asyncHandler(async (req, res) => {
         { new: true, validateBeforeSave: false }
     ).select("-title -uservideoFile -description -duration -isPublished -owner -views -usevideoFile")
   
-     if (req.thumbNail?.thumbnail) {
-        const publicUid = getPublicIdFromUrl(req.thumbNail.thumbnail);
-        try {
-            const deleteFile = await deleteCloudinariyFile(publicUid);
-        } catch (error) {
-            console.error("Error deleting previous thumbnail:", error.message);
-        }
+    
+
+    if (oldVideo?.thumbnail) {
+     const publicUid = getPublicIdFromUrl(oldVideo.thumbnail);
+     await deleteCloudinariyFile(publicUid);
     }
     return res.status(200).json(new ApiResponse(200, thumbNail , "Thumbnail is updated successfully."))
 })
 
-// Update Video Thumbnail
+// Update Video File
+const updateVideoFile = asyncHandler(async (req, res) => {
+    const { videoId } = req.body;
+    const localFilePath = req.file?.path
+
+    if(!videoId || !isValidObjectId(videoId)){
+        throw new ApiError(400, "Video id is required.")
+    }
+
+    if(!localFilePath){
+        throw new ApiError(400,"Video field is required.")
+    }
+
+    const cloudinaryFilePath = await UploadonCloudinary(localFilePath,   req.file?.mimetype)
+    if(!cloudinaryFilePath){
+        throw new ApiError(500, "Error while uploading on Video.")
+    }
+    const oldVideo = await Video.findById(videoId);
+    
+    const videoFile = await Video.findByIdAndUpdate(videoId,
+        {
+            $set:{
+                uservideoFile : cloudinaryFilePath.url
+            }
+        },
+        { new: true, validateBeforeSave: false }
+    ).select("-title -thumbnail -description -duration -isPublished -owner -views -usevideoFile")
+  
+    
+
+    if (oldVideo?.uservideoFile) {
+     const publicUid = getPublicIdFromUrl(oldVideo.uservideoFile);
+     await deleteCloudinariyFile(publicUid,"video");
+    }
+    return res.status(200).json(new ApiResponse(200, videoFile , "Thumbnail is updated successfully."))
+})
+
+// Update Video  meta data
 const updateVideo  = asyncHandler(async (req, res) => {
     const { videoId , isPublished , title , description } = req.body;
-    
+    const _id = new mongoose.Types.ObjectId(videoId)
+
     if(!videoId || !isValidObjectId(videoId)){
         throw new ApiError(400, "Video id is required.")
     }
@@ -482,11 +519,9 @@ const updateVideo  = asyncHandler(async (req, res) => {
     if(!title){
         throw new ApiError(400, "Title field is required.")  
     }
-    if(!description){
-        throw new ApiError(400, "Description field is required.")  
-    }
+  
    
-    const video = await Video.findByIdAndUpdate(videoId,
+    const video = await Video.findByIdAndUpdate(_id,
         {
             $set:{
                 title,
@@ -496,6 +531,7 @@ const updateVideo  = asyncHandler(async (req, res) => {
         },
         { new: true, validateBeforeSave: false }
     )
+    console.log("check update data." , video)
 
     if(!video){
         throw new ApiError(500, "Error Occurr while video updating.")  
@@ -512,6 +548,7 @@ export {
     getVideoById,
     deleteVideo,
     updateVideoThumbnail,
+    updateVideoFile,
     updateVideo ,
     getChanalVideos
 }

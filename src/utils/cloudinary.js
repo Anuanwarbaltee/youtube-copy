@@ -5,41 +5,51 @@ import fs from 'fs'
 cloudinary.config({ 
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME, 
     api_key: process.env.CLOUDINARY_API_KEY, 
-    api_secret: process.env.CLOUDINARY_API_SECRET // Click 'View API Keys' above to copy your API secret
+    api_secret: process.env.CLOUDINARY_API_SECRET 
 });
 
 
-const UploadonCloudinary = async (localFile) =>{
- try {
-    console.log(localFile)
-    if(!localFile) return  null
-    // Upload File
-    let response = await  cloudinary.uploader.upload(localFile,
-        {
-         resource_type:"auto",
-        }
-    )
-    fs.unlinkSync(localFile)
-    return  response
- } catch (error) {
-    fs.unlinkSync(localFile)
-    return null
- }
+const UploadonCloudinary = async (localFile , mimeType) => {
+  try {
 
-}
+    if (!localFile) return null;
+    let resourceType = "auto";
+
+    if (mimeType?.startsWith("image/")) {
+      resourceType = "image";
+    } else if (mimeType?.startsWith("video/")) {
+      resourceType = "video";
+    }
+    const response = await cloudinary.uploader.upload(localFile, {
+      resource_type: resourceType, 
+    });
+
+    fs.unlinkSync(localFile);
+    return response;
+  } catch (error) {
+    console.error("Cloudinary upload error:", error);
+
+    if (fs.existsSync(localFile)) {
+      fs.unlinkSync(localFile);
+    }
+
+    return null;
+  }
+};
+
 
 const getPublicIdFromUrl = (url) => {
-    const parts = url.split('/');
-    return parts[parts.length - 1].split('.')[0]; // Extracts the file name without extension
-  };
+  const matches = url.match(/upload\/(?:v\d+\/)?(.+)\./);
+  return matches ? matches[1] : null;
+};
 
-const deleteCloudinariyFile = async (filePath) => {
+const deleteCloudinariyFile = async (filePath , type = "image") => {
     try {
         if(!filePath) return  null
         // Delete File
         let response = await  cloudinary.uploader.destroy(filePath,
             {
-             resource_type:"image",
+             resource_type: type,
             }
         )
         // fs.unlinkSync(localFile)   

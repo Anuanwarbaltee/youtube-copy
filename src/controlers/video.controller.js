@@ -189,6 +189,12 @@ const getAllVideos = asyncHandler(async (req, res) => {
 
   let pipeline = [];
 
+  pipeline.push({
+  $match: {
+    isPublished: true,
+  },
+ });
+
   //  Lookup users
   pipeline.push({
     $lookup: {

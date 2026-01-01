@@ -169,6 +169,12 @@ const getSubscribedChannelsWithLatestVideo = asynchandler(async (req, res) => {
                 foreignField: "owner",
                 as: "latestVideo",
                 pipeline: [
+                    {
+                        $match: {
+                         isPublished: true,
+                        },
+                    },
+ 
                     { $sort: { createdAt: -1 } },
                     { $limit: 1 },
                     {

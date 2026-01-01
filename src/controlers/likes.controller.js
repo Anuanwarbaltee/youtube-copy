@@ -126,6 +126,11 @@ const geLikedVideos = asyncHandler(async (req, res) => {
         foreignField: "_id",
         as: "video",
         pipeline: [
+          
+       {$match: {
+         isPublished: true,
+       }},
+
           {
             $project: {
               title: 1,
@@ -139,6 +144,7 @@ const geLikedVideos = asyncHandler(async (req, res) => {
         ],
       },
     },
+
 
     {
       $unwind: "$video", // 

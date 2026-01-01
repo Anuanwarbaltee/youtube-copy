@@ -188,16 +188,27 @@ const getCurrentUser = asynchandler(async (req, res) => {
 })
 
 const updateUserAccount = asynchandler( async (req , res ) => {
-    const {fullName , email} = req.body;
-    if(!(fullName || email)){
-      throw new ApiError(400, "Full Name or Email are required.")
+    const {fullName , email , userName} = req.body;
+    if(!(userName)){
+      throw new ApiError(400, "User Name is required.")
     }
+
+   
+        const existingUser = await User.findOne({
+            userName: userName.trim(),
+            _id: { $ne: req.user?._id } // Exclude current user
+        });
+
+        if (existingUser) {
+            throw new ApiError(409, "Username is already taken. Please choose another one.");
+        }
 
     const user = await User.findByIdAndUpdate(req.user?._id , 
         {
             $set:{
                 fullName,
                 email,
+                userName
             }
         },
         {
@@ -216,7 +227,7 @@ const updateUserAvater = asynchandler(async (req, res) => {
         throw new ApiError(400,"Avatar field is required.")
     }
 
-    const avatar = await UploadonCloudinary(localAvatarPath)
+    const avatar = await UploadonCloudinary(localAvatarPath , req.file?.mimetype)
     if(!avatar){
         throw new ApiError(500, "Error while uploading on avatar.")
     }
@@ -227,7 +238,7 @@ const updateUserAvater = asynchandler(async (req, res) => {
             }
         },
         {new:true}
-    ).select("-password")
+    ).select({password:0,  watchHistory:0, refreshToken:0})
      if (req.user?.avatar) {
         const publicUid = getPublicIdFromUrl(req.user.avatar);
         try {
@@ -244,7 +255,7 @@ const updateUserCoverImage = asynchandler(async (req, res) => {
     if(!localCoverImagePath){
         throw new ApiError(400,"Cover Image field is required.")
     }
-    const coverImage = await UploadonCloudinary(localCoverImagePath)
+    const coverImage = await UploadonCloudinary(localCoverImagePath, req.file?.mimetype)
     if(!coverImage){
         throw new ApiError(500, "Error while uploading on Cover Image.")
     }
@@ -255,7 +266,7 @@ const updateUserCoverImage = asynchandler(async (req, res) => {
             }
         },
         {new:true}
-    ).select("-password")
+    ).select({password:0,  watchHistory:0, refreshToken:0})
     if (req.user?.avatar) {
         const publicUid = getPublicIdFromUrl(req.user.coverImage);
         try {
@@ -268,14 +279,14 @@ const updateUserCoverImage = asynchandler(async (req, res) => {
 })
 
 const getUserChannelProfile = asynchandler ( async (req, res)=>{
- const {userName} = req.params
- if(!userName){
+ const {user} = req.params
+ if(!user){
     throw new ApiError(400,"User Name is missing.")
  }
  const channel = await User.aggregate([
     {
         $match:{
-            userName : userName?.toLowerCase()
+            userName : user?.toLowerCase()
         }
     },
     {

@@ -18,6 +18,7 @@ import videoRouter from './routes/video.route.js'
 import playlistRouter from './routes/playlist.routes.js'
 import commentRouter from './routes/comment.route.js'
 import likeRouter from './routes/likes.route.js'
+import errorHandler from './midleware/error.midleware.js';
 
 // route Decleration
 app.use('/api/v1/user', userRouter)
@@ -27,4 +28,6 @@ app.use('/api/v1/playlist', playlistRouter)
 app.use('/api/v1/comment', commentRouter)
 app.use('/api/v1/like', likeRouter)
 
+// error 
+app.use(errorHandler);
 export {app}

@@ -7,7 +7,7 @@ const app = express();
 
 // app.use(cors({origin:`${process.env.COR_ORIGIN}`,credentials:true}));
 
-const allowedOrigins = (process.env.ALLOWED_ORIGINS || '').split(',').map(url => url.trim());
+const allowedOrigins = (process.env.COR_ORIGIN || '').split(',').map(url => url.trim());
 
 // CORS middleware
 app.use(cors({

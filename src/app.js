@@ -7,12 +7,13 @@ const app = express();
 
 // app.use(cors({origin:`${process.env.COR_ORIGIN}`,credentials:true}));
 
-const allowedOrigins = process.env.ALLOWED_ORIGINS.split(',');
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || '').split(',').map(url => url.trim());
 
+// CORS middleware
 app.use(cors({
-  origin: function(origin, callback){
-    if(!origin) return callback(null, true); 
-    if(!allowedOrigins.includes(origin)){
+  origin: function(origin, callback) {
+    if (!origin) return callback(null, true); // allow curl or mobile requests
+    if (!allowedOrigins.includes(origin)) {
       return callback(new Error('CORS policy blocked this origin'), false);
     }
     return callback(null, true);

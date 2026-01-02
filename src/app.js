@@ -5,11 +5,11 @@ import cors from 'cors'
 
 const app = express();
 
-// app.use(cors({origin:`${process.env.COR_ORIGIN}`,credentials:true}));
-app.use(cors({
-  origin: process.env.COR_ORIGIN.split(","),
-  credentials: true
-}));
+app.use(cors({origin:`${process.env.COR_ORIGIN}`,credentials:true}));
+// app.use(cors({
+//   origin: process.env.COR_ORIGIN.split(","),
+//   credentials: true
+// }));
 
 app.use(express.json({limit:"16kb"}));
 app.use(express.urlencoded({extended:true,limit:"16kb"}));
